@@ -1,0 +1,204 @@
+{
+  "info": {
+    "name": "Library API",
+    "description": "API-tests af bibliotek-API'et (Del 6 og 7).\n\nRequests skal køres i rækkefølge, og API'et skal være genstartet først, fordi data kun ligger i hukommelsen.\n\n1. Opret lån → 201\n2. Hent lånet → 200\n3. Ugyldigt ISBN → 400\n4. Samme bog igen → 409\n5. Ukendt lån → 404",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "isbn", "value": "9780306406157", "type": "string" },
+    { "key": "loanId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Opret lån (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status er 201 Created\", () => {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const loan = pm.response.json();",
+              "",
+              "pm.test(\"Lånet har alle felter\", () => {",
+              "    pm.expect(loan).to.have.all.keys(\"id\", \"memberId\", \"bookIsbn\", \"loanDate\", \"dueDate\", \"returnedDate\");",
+              "});",
+              "",
+              "pm.test(\"Lånet er til det rigtige medlem og den rigtige bog\", () => {",
+              "    pm.expect(loan.memberId).to.eql(1);",
+              "    pm.expect(loan.bookIsbn).to.eql(pm.collectionVariables.get(\"isbn\"));",
+              "    pm.expect(loan.returnedDate).to.be.null;",
+              "});",
+              "",
+              "pm.test(\"Afleveringsfristen er 14 dage efter lånedatoen\", () => {",
+              "    const days = (new Date(loan.dueDate) - new Date(loan.loanDate)) / (1000 * 60 * 60 * 24);",
+              "    pm.expect(days).to.eql(14);",
+              "});",
+              "",
+              "pm.test(\"Svartid under 500 ms\", () => {",
+              "    pm.expect(pm.response.responseTime).to.be.below(500);",
+              "});",
+              "",
+              "// Gem id'et, så næste request kan hente netop dette lån",
+              "pm.collectionVariables.set(\"loanId\", loan.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": 1,\n  \"isbn\": \"{{isbn}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/loans",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "loans"]
+        }
+      }
+    },
+    {
+      "name": "2. Hent lånet (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status er 200 OK\", () => {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const loan = pm.response.json();",
+              "",
+              "pm.test(\"Det er samme lån som blev oprettet\", () => {",
+              "    pm.expect(String(loan.id)).to.eql(String(pm.collectionVariables.get(\"loanId\")));",
+              "});",
+              "",
+              "pm.test(\"bookIsbn er det samme som i POST\", () => {",
+              "    pm.expect(loan.bookIsbn).to.eql(pm.collectionVariables.get(\"isbn\"));",
+              "});",
+              "",
+              "pm.test(\"Svartid under 500 ms\", () => {",
+              "    pm.expect(pm.response.responseTime).to.be.below(500);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/loans/{{loanId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "loans", "{{loanId}}"]
+        }
+      }
+    },
+    {
+      "name": "3. Ugyldigt ISBN (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status er 400 Bad Request\", () => {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Fejlsvaret har feltet error\", () => {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property(\"error\");",
+              "    pm.expect(body.error).to.eql(\"Ugyldigt ISBN\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": 1,\n  \"isbn\": \"123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/loans",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "loans"]
+        }
+      }
+    },
+    {
+      "name": "4. Bogen er allerede udlånt (409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status er 409 Conflict\", () => {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"Fejlsvaret har feltet error\", () => {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property(\"error\");",
+              "    pm.expect(body.error).to.include(\"udlånt\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": 1,\n  \"isbn\": \"{{isbn}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/loans",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "loans"]
+        }
+      }
+    },
+    {
+      "name": "5. Ukendt lån (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status er 404 Not Found\", () => {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"Der returneres intet lån\", () => {",
+              "    pm.expect(pm.response.text()).to.not.include(\"bookIsbn\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/loans/99999",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "loans", "99999"]
+        }
+      }
+    }
+  ]
+}
