@@ -27,5 +27,37 @@ public class LoanServiceTests
         repo.Verify(r => r.Add(It.IsAny<Loan>()), Times.Once);
     }
 
-    // TODO Del 3: skriv flere tests her
+    [TestMethod]
+    public void CreateLoan_MedlemHarTreAktiveLaan_KasterInvalidOperationException()
+    {
+        // Arrange – bogen er ledig, så det KUN er lånegrænsen, der stopper lånet
+        var repo = new Mock<ILoanRepository>();
+        repo.Setup(r => r.IsBookAvailable(Isbn)).Returns(true);
+        repo.Setup(r => r.CountActiveLoans(1)).Returns(3);
+        var service = new LoanService(repo.Object);
+        var today = new DateTime(2026, 11, 16);
+
+        // Act + Assert
+        var ex = Assert.ThrowsException<InvalidOperationException>(
+            () => service.CreateLoan(1, Isbn, today));
+        StringAssert.Contains(ex.Message, "3 aktive lån");
+        repo.Verify(r => r.Add(It.IsAny<Loan>()), Times.Never);
+    }
+
+    [TestMethod]
+    public void CreateLoan_BogErAlleredeUdlaant_KasterInvalidOperationException()
+    {
+        // Arrange – medlemmet har ingen lån, så det KUN er bogen, der stopper lånet
+        var repo = new Mock<ILoanRepository>();
+        repo.Setup(r => r.IsBookAvailable(Isbn)).Returns(false);
+        repo.Setup(r => r.CountActiveLoans(1)).Returns(0);
+        var service = new LoanService(repo.Object);
+        var today = new DateTime(2026, 11, 16);
+
+        // Act + Assert
+        var ex = Assert.ThrowsException<InvalidOperationException>(
+            () => service.CreateLoan(1, Isbn, today));
+        StringAssert.Contains(ex.Message, "udlånt");
+        repo.Verify(r => r.Add(It.IsAny<Loan>()), Times.Never);
+    }
 }
