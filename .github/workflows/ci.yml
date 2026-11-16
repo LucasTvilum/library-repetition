@@ -1,0 +1,46 @@
+# CI-pipeline: bygger og tester koden ved hvert push og pull request til develop og main.
+# Hvis en test fejler, returnerer "dotnet test" en fejlkode, jobbet bliver rødt,
+# og branch protection på develop blokerer merge af pull requesten.
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  build-and-test:            # Navnet på status-checket, der kræves i branch protection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hent koden
+        uses: actions/checkout@v4
+
+      - name: Installér .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Unit tests
+        run: dotnet test tests/Library.Tests --no-build --verbosity normal
+
+      # --- Del 7: API-tests med Newman ---
+      # API'et startes i baggrunden (&) og starter uden data, ligesom efter en genstart lokalt.
+      - name: Start API i baggrunden
+        run: dotnet run --project src/Library.Api --no-build &
+
+      - name: Vent til API'et svarer
+        run: curl --silent --retry 30 --retry-connrefused --retry-delay 1 --output /dev/null http://localhost:5000/api/loans/99999
+
+      - name: Installér Newman
+        run: npm install -g newman
+
+      # Newman returnerer en fejlkode, hvis en pm.test fejler, så jobbet bliver rødt
+      - name: API-tests (Newman)
+        run: newman run postman/library.postman_collection.json -e postman/ci.postman_environment.json
