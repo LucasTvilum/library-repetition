@@ -48,4 +48,15 @@ public class FeeCalculatorTests
 
         Assert.AreEqual(50m, fee);
     }
+
+    [TestMethod]
+    public void Calculate_TrettiDageForSent_ReturnererMaks100()
+    {
+        // 30 dage × 5 kr. = 150 kr., men loftet er 100 kr.
+        var returned = new DateTime(2026, 12, 30);
+
+        decimal fee = _calculator.Calculate(Due, returned);
+
+        Assert.AreEqual(100m, fee);
+    }
 }
