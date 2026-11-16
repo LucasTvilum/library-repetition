@@ -29,3 +29,18 @@ jobs:
 
       - name: Unit tests
         run: dotnet test tests/Library.Tests --no-build --verbosity normal
+
+      # --- Del 7: API-tests med Newman ---
+      # API'et startes i baggrunden (&) og starter uden data, ligesom efter en genstart lokalt.
+      - name: Start API i baggrunden
+        run: dotnet run --project src/Library.Api --no-build &
+
+      - name: Vent til API'et svarer
+        run: curl --silent --retry 30 --retry-connrefused --retry-delay 1 --output /dev/null http://localhost:5000/api/loans/99999
+
+      - name: Installér Newman
+        run: npm install -g newman
+
+      # Newman returnerer en fejlkode, hvis en pm.test fejler, så jobbet bliver rødt
+      - name: API-tests (Newman)
+        run: newman run postman/library.postman_collection.json -e postman/ci.postman_environment.json
