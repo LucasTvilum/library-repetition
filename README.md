@@ -83,7 +83,7 @@ Vi byttede driver og navigator ved hver ny del.
 
 ### Del 4 – TDD
 Krav: 5 kr. pr. dag for sent, dog højst 100 kr. Til tiden eller før er gratis.
-Se `git log` på `feature/fee-calculator` (eller [PR #3](https://github.com/LucasTvilum/library-repetition/pull/3/commits)). Hvert trin har sit eget commit:
+Se commit-listen i [PR #3](https://github.com/LucasTvilum/library-repetition/pull/3/commits) eller `git log --oneline develop`. Hvert trin har sit eget commit:
 
 ```
 red:      afleveret til tiden giver 0 kr.          ← kompileringsfejl: klassen fandtes ikke
